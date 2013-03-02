@@ -1,35 +1,57 @@
-# Django settings for mywall project.
+import os
+import re
+from os.path import dirname, basename, realpath, join
 
-DEBUG = True
+from django.core.exceptions import ImproperlyConfigured
+
+PROJECT_ROOT = dirname(realpath(__file__))
+PROJECT_NAME = basename(PROJECT_ROOT)
+SRC_ROOT = dirname(PROJECT_ROOT)
+
+def in_root(path):
+    return join(SRC_ROOT, path)
+
+def get_env(name, default=None, required=False):
+    value = os.environ.get(name, default)
+    if value is None and required:
+        raise ImproperlyConfigured("Environment variable %s is unset" % name)
+    return value
+
+DEBUG = get_env('LIVE', '0') != '1'
 TEMPLATE_DEBUG = DEBUG
 
-ADMINS = (
-    # ('Your Name', 'your_email@example.com'),
-)
+ADMINS = []
+
+admins = get_env('ADMINS', '').split(',')
+admin_re = re.compile(r'^([a-z]+(?: [a-z]+)?) ?<([^>]+)>$', re.IGNORECASE)
+for admin in admins:
+    matches = admin_re.match(admin)
+    if matches:
+        ADMINS.append((matches.groups()[0], matches.groups()[1]))
 
 MANAGERS = ADMINS
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': '',                      # Or path to database file if using sqlite3.
-        # The following settings are not used with sqlite3:
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '',                      # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
-        'PORT': '',                      # Set to empty string for default.
+        'ENGINE': get_env('DB_ENGINE',
+                          'django.db.backends.postgresql_psycopg2'),
+        'NAME': get_env('DB_NAME', '%s_local' % PROJECT_NAME),
+        'USER': get_env('DB_USER', 'postgres'),
+        'PASSWORD': get_env('DB_PASSWORD', ''),
+        'HOST': get_env('DB_HOST', ''),
+        'PORT': get_env('DB_PORT', ''),
     }
 }
 
 # Hosts/domain names that are valid for this site; required if DEBUG is False
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = get_env('DOMAIN', 'localhost').split(',')
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
 # In a Windows environment this must be set to your system time zone.
-TIME_ZONE = 'America/Chicago'
+TIME_ZONE = get_env('TIME_ZONE', 'America/Chicago')
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -61,7 +83,7 @@ MEDIA_URL = ''
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
 # Example: "/var/www/example.com/static/"
-STATIC_ROOT = ''
+STATIC_ROOT = get_env('STATIC_ROOT', '/tmp/static')
 
 # URL prefix for static files.
 # Example: "http://example.com/static/", "http://static.example.com/"
@@ -69,9 +91,7 @@ STATIC_URL = '/static/'
 
 # Additional locations of static files
 STATICFILES_DIRS = (
-    # Put strings here, like "/home/html/static" or "C:/www/django/static".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    in_root('static'),
 )
 
 # List of finder classes that know how to find static files in
@@ -83,7 +103,8 @@ STATICFILES_FINDERS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'gmb(@)doyjuk%4%s84p)!qb80)3e=co!xfx-62cmc##%2a74dg'
+SECRET_KEY = get_env('SECRET',
+                     'gmb(@)doyjuk%4%s84p)!qb80)3e=co!xfx-62cmc##%2a74dg')
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -102,15 +123,13 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'mywall.urls'
+ROOT_URLCONF = '%s.urls' % PROJECT_NAME
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'mywall.wsgi.application'
+WSGI_APPLICATION = '%s.wsgi.application' % PROJECT_NAME
 
 TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    in_root('templates')
 )
 
 INSTALLED_APPS = (
@@ -120,10 +139,10 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Uncomment the next line to enable the admin:
-    # 'django.contrib.admin',
-    # Uncomment the next line to enable admin documentation:
-    # 'django.contrib.admindocs',
+    'django.contrib.admin',
+    'django.contrib.admindocs',
+    'south',
+    'bootstrap',
 )
 
 # A sample logging configuration. The only tangible logging
@@ -154,3 +173,30 @@ LOGGING = {
         },
     }
 }
+
+# Email configuration
+if os.environ.get('EMAIL_HOST'):
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
+    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
+    EMAIL_SUBJECT_PREFIX = os.environ.get('EMAIL_SUBJECT_PREFIX', '')
+    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '0') == '1'
+    EMAIL_SENDER = os.environ.get('EMAIL_SENDER',
+                                  'contact@%s.com' % PROJECT_NAME)
+    SERVER_EMAIL = EMAIL_HOST_USER
+
+# Test runner configuration
+TEST_RUNNER = 'discover_runner.DiscoverRunner'
+TEST_DISCOVER_ROOT = in_root('tests')
+
+# Message tags compatibility with bootstrap
+from django.contrib.messages import constants as message_constants
+MESSAGE_TAGS = {
+    message_constants.DEBUG: 'alert-error',
+    message_constants.INFO: 'alert-info',
+    message_constants.SUCCESS: 'alert-success',
+    message_constants.WARNING: 'alert-warning',
+    message_constants.ERROR: 'alert-error',
+}
+
