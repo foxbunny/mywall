@@ -175,14 +175,14 @@ LOGGING = {
 }
 
 # Email configuration
-if os.environ.get('EMAIL_HOST'):
-    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
-    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '25'))
-    EMAIL_SUBJECT_PREFIX = os.environ.get('EMAIL_SUBJECT_PREFIX', '')
-    EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', '0') == '1'
-    EMAIL_SENDER = os.environ.get('EMAIL_SENDER',
+if get_env('EMAIL_HOST'):
+    EMAIL_HOST = get_env('EMAIL_HOST', 'localhost')
+    EMAIL_HOST_USER = get_env('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = get_env('EMAIL_HOST_PASSWORD', '')
+    EMAIL_PORT = int(get_env('EMAIL_PORT', '25'))
+    EMAIL_SUBJECT_PREFIX = get_env('EMAIL_SUBJECT_PREFIX', '')
+    EMAIL_USE_TLS = get_env('EMAIL_USE_TLS', '0') == '1'
+    EMAIL_SENDER = get_env('EMAIL_SENDER',
                                   'contact@%s.com' % PROJECT_NAME)
     SERVER_EMAIL = EMAIL_HOST_USER
 
